@@ -1,29 +1,40 @@
 import * as fs from "fs";
+import { Cart } from "./cart";
+import { TrackSymbols, Location } from "./types";
 
-interface Segment {
-  x: number;
-  y: number;
-  symbol: "|" | "-" | "/" | "\\" | "+" | " ";
-}
-
-interface Location {
-  x: number;
-  y: number;
-}
-
-export default class Track {
+export class Track {
   static parse(fileName: string) {
     const content = fs.readFileSync(fileName, "utf-8");
-    const trackMap = content.split("\n").map(str => str.split(""));
+
+    const trackMap = content
+      .split("\n")
+      .map(str => str.split("")) as TrackSymbols[][];
 
     return new Track(trackMap);
   }
 
-  constructor(private trackMap: string[][]) {}
+  constructor(public trackMap: TrackSymbols[][]) {}
 
-  location({ x, y }: Location) {
-    const symbol = this.trackMap[x][y];
-
-    return { x, y, symbol } as Segment;
+  display() {
+    return this.trackMap.map(row => row.join("")).join("\n");
   }
+
+  location(loc: Location) {
+    const symbol = this.trackMap[loc.x][loc.y] as TrackSymbols;
+
+    return { x: loc.x, y: loc.y, symbol };
+  }
+
+  findCarts() {
+    const nestedCarts = this.trackMap.map((row, x) => findCartsInRow(row, x));
+    return ([] as Cart[]).concat(...nestedCarts);
+  }
+}
+
+function findCartsInRow(row: TrackSymbols[], x: Location["x"]): Cart[] {
+  return row
+    .map((symbol, y) => {
+      if (Cart.isCart(symbol)) return new Cart(symbol, { x, y });
+    })
+    .filter(obj => obj) as Cart[];
 }
