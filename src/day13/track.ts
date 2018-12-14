@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import { Cart } from "./cart";
-import { TrackSymbols, Location } from "./types";
+import { TrackSymbols, Location, SegmentSymbol } from "./types";
+import * as shortid from "shortid";
 
 export class Track {
   static parse(fileName: string) {
@@ -8,37 +9,62 @@ export class Track {
 
     const trackMap = content
       .split("\n")
-      .map(str => str.split("")) as TrackSymbols[][];
+      .map((str, x) =>
+        str
+          .split("")
+          .map((sym, y) => parseSymbol(sym as TrackSymbols, { x, y }))
+      );
 
     return new Track(trackMap);
   }
 
-  constructor(public trackMap: TrackSymbols[][]) {}
+  constructor(public trackMap: { symbol: TrackSymbols }[][]) {}
 
   display() {
-    return this.trackMap.map(row => row.join("")).join("\n");
+    return this.trackMap
+      .map(row => row.map(obj => obj.symbol).join(""))
+      .join("\n");
   }
 
-  updateLocation(loc: Location, updatedSymbol: TrackSymbols) {
+  updateLocation(
+    loc: Location,
+    updatedSymbol:
+      | Cart
+      | {
+          symbol: TrackSymbols;
+          location: Location;
+        }
+  ) {
+    if (Cart.isCart(updatedSymbol.symbol)) {
+      this.trackMap[loc.x][loc.y] = updatedSymbol as Cart;
+    }
+
     this.trackMap[loc.x][loc.y] = updatedSymbol;
     return this;
   }
 
   location(loc: Location) {
-    const symbol = this.trackMap[loc.x][loc.y] as TrackSymbols;
-    return { x: loc.x, y: loc.y, symbol };
+    const val = this.trackMap[loc.x][loc.y];
+    if (Cart.isCart(val.symbol)) {
+      return val as Cart;
+    }
+    return { location: loc, ...val };
   }
 
   findCarts() {
-    const nestedCarts = this.trackMap.map((row, x) => findCartsInRow(row, x));
+    const nestedCarts = this.trackMap.map(findCartsInRow);
     return ([] as Cart[]).concat(...nestedCarts);
   }
 }
 
-function findCartsInRow(row: TrackSymbols[], x: Location["x"]): Cart[] {
-  return row
-    .map((symbol, y) => {
-      if (Cart.isCart(symbol)) return new Cart(symbol, { x, y });
-    })
-    .filter(obj => obj) as Cart[];
+function findCartsInRow(row: ({ symbol: TrackSymbols })[]) {
+  return row.filter(obj => obj instanceof Cart) as Cart[];
+}
+
+function parseSymbol(symbol: TrackSymbols, location: Location) {
+  if (Cart.isCart(symbol)) {
+    return new Cart(symbol, location, shortid.generate());
+  }
+
+  return { symbol };
 }
