@@ -19,9 +19,13 @@ export class Track {
     return this.trackMap.map(row => row.join("")).join("\n");
   }
 
+  updateLocation(loc: Location, updatedSymbol: TrackSymbols) {
+    this.trackMap[loc.x][loc.y] = updatedSymbol;
+    return this;
+  }
+
   location(loc: Location) {
     const symbol = this.trackMap[loc.x][loc.y] as TrackSymbols;
-
     return { x: loc.x, y: loc.y, symbol };
   }
 
